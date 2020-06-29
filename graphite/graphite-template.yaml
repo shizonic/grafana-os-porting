@@ -9,26 +9,29 @@ metadata:
 objects:
 
 - kind: ImageStream
-  apiVersion: v1
+  apiVersion: image.openshift.io/v1
   metadata:
-    name: grafana-rootless
+    name: grafana-os-porting
   spec:
     tags:
-      - name: latest
+    - referencePolicy:
+        type: Source
+  status:
 
 - kind: ImageStream
-  apiVersion: v1
+  apiVersion: image.openshift.io/v1
   metadata:
     name: graphite-statsd
   spec:
     lookupPolicy:
       local: false
     tags:
-    - name: latest
-      from:
+    - from:
         kind: DockerImage
         name: graphiteapp/graphite-statsd
-  status:
+      name: latest
+      referencePolicy:
+        type: Source
 
 - kind: Secret
   apiVersion: v1
@@ -39,14 +42,15 @@ objects:
     username: b3BlbnNoaWZ0
 
 - kind: BuildConfig
-  apiVersion: v1
+  apiVersion: build.openshift.io/v1
   metadata:
-    name: graphite-statsd
+    name: grafana-os-porting
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: grafana-rootless:latest
+        name: grafana-os-porting:latest
+    runPolicy: Serial
     source:
       contextDir: graphite
       git:
@@ -57,31 +61,42 @@ objects:
       type: Git
     strategy:
       dockerStrategy:
-      from:
-        kind: ImageStreamTag
-        name: graphite-statsd:latest
+        from:
+          kind: ImageStreamTag
+          name: graphite-statsd:latest
       type: Docker
     triggers:
     - type: ConfigChange
-
+    - imageChange:
+      type: ImageChange
+  status:
 
 - kind: DeploymentConfig
-  apiVersion: v1
+  apiVersion: apps.openshift.io/v1
   metadata:
-    name: graphite-statsd
-    labels:
-      deploymentconfig: graphite-statsd
+    name: grafana-os-porting
   spec:
     replicas: 1
+    selector:
+      deploymentconfig: grafana-os-porting
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
     template:
       metadata:
         labels:
-          deploymentconfig: graphite-statsd
+          deploymentconfig: grafana-os-porting
       spec:
         containers:
-        - image: grafana-rootless:latest
+        - image: grafana-os-porting:latest
           imagePullPolicy: Always
-          name: graphite-rootless
+          name: grafana-os-porting
           ports:
           - containerPort: 2023
             protocol: TCP
@@ -131,14 +146,19 @@ objects:
             defaultMode: 420
             name: nginx-config
           name: config-volume
+    test: false
     triggers:
     - type: ConfigChange
-    - type: imageChangeParams
+    - type: ImageChange
       imageChangeParams:
         automatic: true
+        containerNames:
+        - grafana-os-porting
         from:
           kind: ImageStreamTag
-          name: grafana-rootless:latest
+          name: grafana-os-porting:latest
+  status:
+
 - kind: ConfigMap
   apiVersion: v1
   metadata:
@@ -280,10 +300,25 @@ objects:
       }
 
       }
-- kind: Service
-  apiVersion: v1
+
+- apiVersion: route.openshift.io/v1
+  kind: Route
   metadata:
-    name: graphite-statsd
+    name: grafana-os-porting
+  spec:
+    port:
+      targetPort: 80-tcp
+    to:
+      kind: Service
+      name: grafana-os-porting
+      weight: 100
+    wildcardPolicy: None
+  status:
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: grafana-os-porting
   spec:
     ports:
     - name: 80-tcp
@@ -331,5 +366,22 @@ objects:
       protocol: TCP
       targetPort: 8126
     selector:
-      deploymentconfig: graphite-statsd
+      deploymentconfig: grafana-os-porting
+    sessionAffinity: None
     type: ClusterIP
+  status:
+
+- kind: Route
+  apiVersion: route.openshift.io/v1
+  metadata:
+    name: graphite-statsd
+  spec:
+    port:
+      targetPort: 80-tcp
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: edge
+    to:
+      kind: Service
+      name: grafana-os-porting
+  status:
