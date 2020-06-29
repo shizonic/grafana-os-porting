@@ -30,7 +30,7 @@ objects:
   - kind: ImageStream
     apiVersion: v1
     metadata:
-      name: grafana-rootless
+      name: graphite-rootless
     spec:
       tags:
         - name: latest
@@ -57,13 +57,13 @@ objects:
       output:
         to:
           kind: ImageStreamTag
-          name: grafana-rootless:latest
+          name: graphite-rootless:latest
       strategy:
         type: Docker
         dockerStrategy:
-        from:
-          kind: ImageStreamTag
-          name: graphite-statsd:latest
+          from:
+            kind: ImageStreamTag
+            name: graphite-statsd:latest
       triggers:
       - type: ConfigChange
   - kind: DeploymentConfig
@@ -81,14 +81,14 @@ objects:
           automatic: true
           from:
             kind: ImageStreamTag
-            name: grafana-rootless:latest
+            name: graphite-rootless:latest
       template:
         metadata:
           labels:
             deploymentconfig: graphite-statsd
         spec:
           containers:
-          - image: grafana-rootless:latest
+          - image: graphite-rootless:latest
             imagePullPolicy: Always
             name: graphite-rootless
             ports:
