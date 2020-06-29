@@ -1,0 +1,322 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: graphite-statsd-template
+  app: graphite-statsd
+message: Stuff was created!
+metadata:
+  name: graphite-statsd
+objects:
+  - kind: ImageStream
+    apiVersion: v1
+    metadata:
+      name: graphite-statsd
+    spec:
+      lookupPolicy:
+        local: false
+      tags:
+      - name: latest
+        from:
+          kind: DockerImage
+          name: graphiteapp/graphite-statsd
+
+  - kind: Secret
+    apiVersion: v1
+    metadata:
+      name: gitlab-deploy-token
+    data:
+      password: ZlRHRng4cW1FR3BQR25aa1k1c3M=
+      username: b3BlbnNoaWZ0
+  - kind: BuildConfig
+    apiVersion: v1
+    metadata:
+      name: graphite-statsd
+    spec:
+      source:
+        type: Git
+        git:
+          ref: graphite_build
+          uri: https://gitlab.puzzle.ch/cbalmer/grafana-os-porting.git
+        contextDir: graphite
+        sourceSecret:
+          name: gitlab-deploy-token
+      output:
+        to:
+          kind: ImageStreamTag
+          name: grafana-rootless:latest
+      strategy:
+        type: Docker
+        dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          name: graphite-statsd:latest
+      triggers:
+      - type: ConfigChange
+  - kind: DeploymentConfig
+    apiVersion: v1
+    metadata:
+      name: graphite-statsd
+      labels:
+        deploymentconfig: graphite-statsd
+    spec:
+      replicas: 1
+      triggers:
+      - type: ConfigChange
+      - type: imageChangeParams
+        imageChangeParams:
+          automatic: true
+          from:
+            kind: ImageStreamTag
+            name: grafana-rootless:latest
+      template:
+        metadata:
+          labels:
+            deploymentconfig: graphite-statsd
+        spec:
+          containers:
+          - image: grafana-rootless:latest
+            imagePullPolicy: Always
+            name: graphite-rootless
+            ports:
+            - containerPort: 2023
+              protocol: TCP
+            - containerPort: 80
+              protocol: TCP
+            - containerPort: 8125
+              protocol: TCP
+            - containerPort: 8125
+              protocol: UDP
+            - containerPort: 8080
+              protocol: TCP
+            - containerPort: 8126
+              protocol: TCP
+            - containerPort: 2003
+              protocol: TCP
+            - containerPort: 2004
+              protocol: TCP
+            - containerPort: 2013
+              protocol: TCP
+            - containerPort: 2014
+              protocol: TCP
+            - containerPort: 2024
+              protocol: TCP
+            - containerPort: 2080
+              protocol: TCP
+            volumeMounts:
+            - mountPath: /opt/graphite/storage
+              name: grafana-os-porting-volume-1
+            - mountPath: /var/lib/redis
+              name: grafana-os-porting-volume-2
+            - mountPath: /var/log
+              name: grafana-os-porting-volume-3
+            - mountPath: /etc/nginx/nginx.conf
+              name: config-volume
+              subPath: nginx.conf
+            - mountPath: /etc/nginx/sites-enabled/graphite-statsd.conf
+              name: config-volume
+              subPath: sites-enabled-graphite-statsd.conf
+          volumes:
+          - emptyDir: {}
+            name: grafana-os-porting-volume-1
+          - emptyDir: {}
+            name: grafana-os-porting-volume-2
+          - emptyDir: {}
+            name: grafana-os-porting-volume-3
+          - configMap:
+              defaultMode: 420
+              name: nginx-config
+            name: config-volume
+  - kind: ConfigMap
+    apiVersion: v1
+    metadata:
+      name: nginx-config
+    data:
+      nginx.conf: |
+        #user nginx;
+        worker_processes 4;
+        pid /run/nginx.pid;
+        daemon off;
+
+        events {
+        	worker_connections 768;
+        	# multi_accept on;
+        }
+
+        http {
+
+        	##
+        	# Basic Settings
+        	##
+
+        	sendfile on;
+        	tcp_nopush on;
+        	tcp_nodelay on;
+        	keepalive_timeout 65;
+        	types_hash_max_size 2048;
+        	# server_tokens off;
+
+        	# server_names_hash_bucket_size 64;
+        	# server_name_in_redirect off;
+
+        	include /etc/nginx/mime.types;
+        	default_type application/octet-stream;
+
+        	##
+        	# Logging Settings
+        	##
+
+        	access_log /var/log/nginx/access.log;
+        	error_log /var/log/nginx/error.log;
+
+        	##
+        	# Gzip Settings
+        	##
+
+        	gzip on;
+        	gzip_disable "msie6";
+
+        	# gzip_vary on;
+        	# gzip_proxied any;
+        	# gzip_comp_level 6;
+        	# gzip_buffers 16 8k;
+        	# gzip_http_version 1.1;
+        	# gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+
+        	##
+        	# nginx-naxsi config
+        	##
+        	# Uncomment it if you installed nginx-naxsi
+        	##
+
+        	#include /etc/nginx/naxsi_core.rules;
+
+        	##
+        	# nginx-passenger config
+        	##
+        	# Uncomment it if you installed nginx-passenger
+        	##
+
+        	#passenger_root /usr;
+        	#passenger_ruby /usr/bin/ruby;
+
+        	##
+        	# Virtual Host Configs
+        	##
+
+        	include /etc/nginx/conf.d/*.conf;
+        	include /etc/nginx/sites-enabled/*;
+        }
+
+
+        #mail {
+        #	# See sample authentication script at:
+        #	# http://wiki.nginx.org/ImapAuthenticateWithApachePhpScript
+        #
+        #	# auth_http localhost/auth.php;
+        #	# pop3_capabilities "TOP" "USER";
+        #	# imap_capabilities "IMAP4rev1" "UIDPLUS";
+        #
+        #	server {
+        #		listen     localhost:110;
+        #		protocol   pop3;
+        #		proxy      on;
+        #	}
+        #
+        #	server {
+        #		listen     localhost:143;
+        #		protocol   imap;
+        #		proxy      on;
+        #	}
+        #}
+      sites-enabled-graphite-statsd.conf: |
+        server {
+        listen 2080;
+        root /opt/graphite/static;
+        index index.html;
+
+        location /nginx_status {
+          stub_status on;
+          access_log   off;
+          allow 127.0.0.1;
+          deny all;
+        }
+
+        location /media {
+          # django admin static files
+          alias /usr/local/lib/python3.6/dist-packages/django/contrib/admin/media/;
+        }
+
+        location /admin/auth/admin {
+          alias /usr/local/lib/python3.6/dist-packages/django/contrib/admin/static/admin;
+        }
+
+        location /admin/auth/user/admin {
+          alias /usr/local/lib/python3.6/dist-packages/django/contrib/admin/static/admin;
+        }
+
+        location / {
+          proxy_pass http://127.0.0.1:8080;
+          proxy_set_header  Host      $http_host;
+          proxy_set_header  X-Real-IP $remote_addr;
+          proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+          add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type';
+          add_header 'Access-Control-Allow-Credentials' 'true';
+        }
+
+        }
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      name: graphite-statsd
+    spec:
+      ports:
+      - name: 80-tcp
+        port: 80
+        protocol: TCP
+        targetPort: 2080
+      - name: 2003-tcp
+        port: 2003
+        protocol: TCP
+        targetPort: 2003
+      - name: 2004-tcp
+        port: 2004
+        protocol: TCP
+        targetPort: 2004
+      - name: 2013-tcp
+        port: 2013
+        protocol: TCP
+        targetPort: 2013
+      - name: 2014-tcp
+        port: 2014
+        protocol: TCP
+        targetPort: 2014
+      - name: 2023-tcp
+        port: 2023
+        protocol: TCP
+        targetPort: 2023
+      - name: 2024-tcp
+        port: 2024
+        protocol: TCP
+        targetPort: 2024
+      - name: 8080-tcp
+        port: 8080
+        protocol: TCP
+        targetPort: 8080
+      - name: 8125-tcp
+        port: 8125
+        protocol: TCP
+        targetPort: 8125
+      - name: 8125-udp
+        port: 8125
+        protocol: UDP
+        targetPort: 8125
+      - name: 8126-tcp
+        port: 8126
+        protocol: TCP
+        targetPort: 8126
+      selector:
+        deploymentconfig: graphite-statsd
+      type: ClusterIP
