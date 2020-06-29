@@ -1,0 +1,74 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: "2020-06-28T19:44:53Z"
+    labels:
+      app: grafana-os-porting
+      app.kubernetes.io/component: grafana-os-porting
+      app.kubernetes.io/instance: grafana-os-porting
+    name: grafana-os-porting
+    namespace: cbl-grafanagaphite-test
+    resourceVersion: "12957107"
+    selfLink: /api/v1/namespaces/cbl-grafanagaphite-test/services/grafana-os-porting
+    uid: 7f6a5131-d06b-4b77-b258-1716b11afe1f
+  spec:
+    clusterIP: 172.30.173.247
+    ports:
+    - name: 80-tcp
+      port: 80
+      protocol: TCP
+      targetPort: 2080
+    - name: 2003-tcp
+      port: 2003
+      protocol: TCP
+      targetPort: 2003
+    - name: 2004-tcp
+      port: 2004
+      protocol: TCP
+      targetPort: 2004
+    - name: 2013-tcp
+      port: 2013
+      protocol: TCP
+      targetPort: 2013
+    - name: 2014-tcp
+      port: 2014
+      protocol: TCP
+      targetPort: 2014
+    - name: 2023-tcp
+      port: 2023
+      protocol: TCP
+      targetPort: 2023
+    - name: 2024-tcp
+      port: 2024
+      protocol: TCP
+      targetPort: 2024
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: 8125-tcp
+      port: 8125
+      protocol: TCP
+      targetPort: 8125
+    - name: 8125-udp
+      port: 8125
+      protocol: UDP
+      targetPort: 8125
+    - name: 8126-tcp
+      port: 8126
+      protocol: TCP
+      targetPort: 8126
+    selector:
+      deploymentconfig: grafana-os-porting
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""

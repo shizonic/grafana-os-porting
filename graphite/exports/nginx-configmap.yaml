@@ -1,0 +1,79 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  data:
+    nginx.conf: "#user nginx;\nworker_processes 4;\npid /run/nginx.pid;\ndaemon off;\n\nevents
+      {\n\tworker_connections 768;\n\t# multi_accept on;\n}\n\nhttp {\n\n\t##\n\t#
+      Basic Settings\n\t##\n\n\tsendfile on;\n\ttcp_nopush on;\n\ttcp_nodelay on;\n\tkeepalive_timeout
+      65;\n\ttypes_hash_max_size 2048;\n\t# server_tokens off;\n\n\t# server_names_hash_bucket_size
+      64;\n\t# server_name_in_redirect off;\n\n\tinclude /etc/nginx/mime.types;\n\tdefault_type
+      application/octet-stream;\n\n\t##\n\t# Logging Settings\n\t##\n\n\taccess_log
+      /var/log/nginx/access.log;\n\terror_log /var/log/nginx/error.log;\n\n\t##\n\t#
+      Gzip Settings\n\t##\n\n\tgzip on;\n\tgzip_disable \"msie6\";\n\n\t# gzip_vary
+      on;\n\t# gzip_proxied any;\n\t# gzip_comp_level 6;\n\t# gzip_buffers 16 8k;\n\t#
+      gzip_http_version 1.1;\n\t# gzip_types text/plain text/css application/json
+      application/x-javascript text/xml application/xml application/xml+rss text/javascript;\n\n\t##\n\t#
+      nginx-naxsi config\n\t##\n\t# Uncomment it if you installed nginx-naxsi\n\t##\n\n\t#include
+      /etc/nginx/naxsi_core.rules;\n\n\t##\n\t# nginx-passenger config\n\t##\n\t#
+      Uncomment it if you installed nginx-passenger\n\t##\n\n\t#passenger_root /usr;\n\t#passenger_ruby
+      /usr/bin/ruby;\n\n\t##\n\t# Virtual Host Configs\n\t##\n\n\tinclude /etc/nginx/conf.d/*.conf;\n\tinclude
+      /etc/nginx/sites-enabled/*;\n}\n\n\n#mail {\n#\t# See sample authentication
+      script at:\n#\t# http://wiki.nginx.org/ImapAuthenticateWithApachePhpScript\n#\n#\t#
+      auth_http localhost/auth.php;\n#\t# pop3_capabilities \"TOP\" \"USER\";\n#\t#
+      imap_capabilities \"IMAP4rev1\" \"UIDPLUS\";\n#\n#\tserver {\n#\t\tlisten     localhost:110;\n#\t\tprotocol
+      \  pop3;\n#\t\tproxy      on;\n#\t}\n#\n#\tserver {\n#\t\tlisten     localhost:143;\n#\t\tprotocol
+      \  imap;\n#\t\tproxy      on;\n#\t}\n#}\n\n"
+    sites-enabled-graphite-statsd.conf: |+
+      server {
+        listen 2080;
+        root /opt/graphite/static;
+        index index.html;
+
+        location /nginx_status {
+          stub_status on;
+          access_log   off;
+          allow 127.0.0.1;
+          deny all;
+        }
+
+        location /media {
+          # django admin static files
+          alias /usr/local/lib/python3.6/dist-packages/django/contrib/admin/media/;
+        }
+
+        location /admin/auth/admin {
+          alias /usr/local/lib/python3.6/dist-packages/django/contrib/admin/static/admin;
+        }
+
+        location /admin/auth/user/admin {
+          alias /usr/local/lib/python3.6/dist-packages/django/contrib/admin/static/admin;
+        }
+
+        location / {
+          proxy_pass http://127.0.0.1:8080;
+          proxy_set_header  Host      $http_host;
+          proxy_set_header  X-Real-IP $remote_addr;
+          proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+          add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type';
+          add_header 'Access-Control-Allow-Credentials' 'true';
+        }
+
+      }
+
+  kind: ConfigMap
+  metadata:
+    creationTimestamp: "2020-06-28T22:18:44Z"
+    labels:
+      app: grafana-os-porting
+    name: nginx-config
+    namespace: cbl-grafanagaphite-test
+    resourceVersion: "12969311"
+    selfLink: /api/v1/namespaces/cbl-grafanagaphite-test/configmaps/nginx-config
+    uid: 2b6476cb-1317-4018-bcfd-7194801aa1b4
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""

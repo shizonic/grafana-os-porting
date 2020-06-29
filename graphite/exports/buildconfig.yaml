@@ -1,0 +1,59 @@
+apiVersion: v1
+items:
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: "2020-06-28T19:44:53Z"
+    labels:
+      app: grafana-os-porting
+      app.kubernetes.io/component: grafana-os-porting
+      app.kubernetes.io/instance: grafana-os-porting
+    name: grafana-os-porting
+    namespace: cbl-grafanagaphite-test
+    resourceVersion: "12969041"
+    selfLink: /apis/build.openshift.io/v1/namespaces/cbl-grafanagaphite-test/buildconfigs/grafana-os-porting
+    uid: e2fcf931-818b-4fb9-9d7d-e08b146da2be
+  spec:
+    failedBuildsHistoryLimit: 5
+    nodeSelector: null
+    output:
+      to:
+        kind: ImageStreamTag
+        name: grafana-os-porting:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      contextDir: graphite
+      git:
+        ref: graphite_build
+        uri: https://gitlab.puzzle.ch/cbalmer/grafana-os-porting.git
+      sourceSecret:
+        name: gitlab-deploy-token
+      type: Git
+    strategy:
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          name: graphite-statsd:latest
+      type: Docker
+    successfulBuildsHistoryLimit: 5
+    triggers:
+    - github:
+        secret: Uri071BImrPqIDXKXsPV
+      type: GitHub
+    - generic:
+        secret: cOeg7a1EfJTnhPREAT-4
+      type: Generic
+    - type: ConfigChange
+    - imageChange:
+        lastTriggeredImageID: graphiteapp/graphite-statsd@sha256:8e3044ab585e3d8a61db43c54d4b1c3cef63f87f8bb06e0157dec1d48e7abb9b
+      type: ImageChange
+  status:
+    lastVersion: 10
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
