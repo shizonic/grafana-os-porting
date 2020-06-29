@@ -1,0 +1,5 @@
+GIT_USERNAME=b3BlbnNoaWZ0
+GIT_PASSWORD=ZlRHRng4cW1FR3BQR25aa1k1c3M=
+GIT_REPOSITORY=https://gitlab.puzzle.ch/cbalmer/grafana-os-porting.git
+GIT_BRANCH=cra-template
+IMAGE_TAG=latest
