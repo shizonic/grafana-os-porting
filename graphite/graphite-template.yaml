@@ -19,7 +19,21 @@ objects:
         from:
           kind: DockerImage
           name: graphiteapp/graphite-statsd
-
+    status:
+      tags:
+        - items:
+          - created: "2020-06-29T11:34:06Z"
+            dockerImageReference: docker.io/graphiteapp/graphite-statsd@sha256:8e3044ab585e3d8a61db43c54d4b1c3cef63f87f8bb06e0157dec1d48e7abb9b
+            generation: 5
+            image: sha256:8e3044ab585e3d8a61db43c54d4b1c3cef63f87f8bb06e0157dec1d48e7abb9b
+          tag: latest
+  - kind: ImageStream
+    apiVersion: v1
+    metadata:
+      name: grafana-rootless
+    spec:
+      tags:
+        - name: latest
   - kind: Secret
     apiVersion: v1
     metadata:
