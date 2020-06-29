@@ -3,23 +3,21 @@ kind: Template
 labels:
   template: graphite-statsd-template
   app: graphite-statsd
-message: Stuff was created!
 metadata:
   name: graphite-statsd
 objects:
 
 - kind: ImageStream
-  apiVersion: image.openshift.io/v1
+  apiVersion: v1
   metadata:
-    name: grafana-os-porting
+    name: graphite-rootless
   spec:
     tags:
     - referencePolicy:
         type: Source
-  status:
 
 - kind: ImageStream
-  apiVersion: image.openshift.io/v1
+  apiVersion: v1
   metadata:
     name: graphite-statsd
   spec:
@@ -42,29 +40,29 @@ objects:
     username: b3BlbnNoaWZ0
 
 - kind: BuildConfig
-  apiVersion: build.openshift.io/v1
+  apiVersion: v1
   metadata:
-    name: grafana-os-porting
+    name: graphite-rootless
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: grafana-os-porting:latest
+        name: graphite-rootless:latest
     runPolicy: Serial
     source:
       contextDir: graphite
       git:
-        ref: graphite_build
+        ref: cra-template
         uri: https://gitlab.puzzle.ch/cbalmer/grafana-os-porting.git
       sourceSecret:
         name: gitlab-deploy-token
       type: Git
     strategy:
+      type: Docker
       dockerStrategy:
         from:
           kind: ImageStreamTag
           name: graphite-statsd:latest
-      type: Docker
     triggers:
     - type: ConfigChange
     - imageChange:
@@ -72,14 +70,15 @@ objects:
   status:
 
 - kind: DeploymentConfig
-  apiVersion: apps.openshift.io/v1
+  apiVersion: v1
   metadata:
-    name: grafana-os-porting
+    name: graphite-statsd
   spec:
     replicas: 1
     selector:
-      deploymentconfig: grafana-os-porting
+      deploymentconfig: graphite-statsd
     strategy:
+      type: Rolling
       resources: {}
       rollingParams:
         intervalSeconds: 1
@@ -87,16 +86,15 @@ objects:
         maxUnavailable: 25%
         timeoutSeconds: 600
         updatePeriodSeconds: 1
-      type: Rolling
     template:
       metadata:
         labels:
-          deploymentconfig: grafana-os-porting
+          deploymentconfig: graphite-statsd
       spec:
         containers:
-        - image: grafana-os-porting:latest
+        - image: graphite-rootless:latest
           imagePullPolicy: Always
-          name: grafana-os-porting
+          name: graphite-rootless
           ports:
           - containerPort: 2023
             protocol: TCP
@@ -124,11 +122,11 @@ objects:
             protocol: TCP
           volumeMounts:
           - mountPath: /opt/graphite/storage
-            name: grafana-os-porting-volume-1
+            name: graphite-statsd-volume-1
           - mountPath: /var/lib/redis
-            name: grafana-os-porting-volume-2
+            name: graphite-statsd-volume-2
           - mountPath: /var/log
-            name: grafana-os-porting-volume-3
+            name: graphite-statsd-volume-3
           - mountPath: /etc/nginx/nginx.conf
             name: config-volume
             subPath: nginx.conf
@@ -137,11 +135,11 @@ objects:
             subPath: sites-enabled-graphite-statsd.conf
         volumes:
         - emptyDir: {}
-          name: grafana-os-porting-volume-1
+          name: graphite-statsd-volume-1
         - emptyDir: {}
-          name: grafana-os-porting-volume-2
+          name: graphite-statsd-volume-2
         - emptyDir: {}
-          name: grafana-os-porting-volume-3
+          name: graphite-statsd-volume-3
         - configMap:
             defaultMode: 420
             name: nginx-config
@@ -153,10 +151,10 @@ objects:
       imageChangeParams:
         automatic: true
         containerNames:
-        - grafana-os-porting
+        - graphite-rootless
         from:
           kind: ImageStreamTag
-          name: grafana-os-porting:latest
+          name: graphite-rootless:latest
   status:
 
 - kind: ConfigMap
@@ -301,24 +299,10 @@ objects:
 
       }
 
-- apiVersion: route.openshift.io/v1
-  kind: Route
-  metadata:
-    name: grafana-os-porting
-  spec:
-    port:
-      targetPort: 80-tcp
-    to:
-      kind: Service
-      name: grafana-os-porting
-      weight: 100
-    wildcardPolicy: None
-  status:
-
 - apiVersion: v1
   kind: Service
   metadata:
-    name: grafana-os-porting
+    name: graphite-statsd
   spec:
     ports:
     - name: 80-tcp
@@ -366,13 +350,13 @@ objects:
       protocol: TCP
       targetPort: 8126
     selector:
-      deploymentconfig: grafana-os-porting
+      deploymentconfig: graphite-statsd
     sessionAffinity: None
     type: ClusterIP
   status:
 
 - kind: Route
-  apiVersion: route.openshift.io/v1
+  apiVersion: v1
   metadata:
     name: graphite-statsd
   spec:
@@ -383,5 +367,19 @@ objects:
       termination: edge
     to:
       kind: Service
-      name: grafana-os-porting
+      name: graphite-statsd
+  status:
+
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: graphite-statsd
+  spec:
+    port:
+      targetPort: 80-tcp
+    to:
+      kind: Service
+      name: graphite-statsd
+      weight: 100
+    wildcardPolicy: None
   status:
