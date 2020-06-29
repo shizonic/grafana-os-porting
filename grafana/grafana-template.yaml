@@ -1,0 +1,204 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: grafana-template
+  app: grafana
+metadata:
+  name: grafana
+objects:
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: grafana
+  spec:
+    tags:
+    - from:
+        kind: DockerImage
+        name: grafana/grafana:${IMAGE_TAG}
+      name: ${IMAGE_TAG}
+
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    name: grafana
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: grafana
+    strategy:
+      type: Rolling
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+    template:
+      metadata:
+        labels:
+          deploymentconfig: grafana
+      spec:
+        containers:
+        - image: grafana:${IMAGE_TAG}
+          imagePullPolicy: Always
+          name: grafana
+          ports:
+          - containerPort: 3000
+            protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+              scheme: HTTP
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 30
+            timeoutSeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 10
+          resources:
+            limits:
+              cpu: 100m
+              memory: 500Mi
+            requests:
+              cpu: 30m
+              memory: 200Mi
+          env:
+          - name: GF_SECURITY_ADMIN_USER
+            valueFrom:
+              secretKeyRef:
+                name: grafana-admin-user
+                key: username
+          - name: GF_SECURITY_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: grafana-admin-user
+                key: password
+          - name: GF_INSTALL_PLUGINS
+            value: ${PLUGINS}
+          volumeMounts:
+          - name: config
+            mountPath: "/etc/grafana/grafana.ini"
+            subPath: grafana.ini
+          - name: storage
+            mountPath: "/var/lib/grafana"
+        volumes:
+        - name: config
+          configMap:
+            name: grafana-config
+        - name: storage
+          persistentVolumeClaim:
+            claimName: grafana-storage
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - grafana
+        from:
+          kind: ImageStreamTag
+          name: grafana:${IMAGE_TAG}
+
+- kind: PersistentVolumeClaim
+  apiVersion: v1
+  metadata:
+   name: grafana-storage
+  spec:
+   accessModes:
+     - ReadWriteOnce
+   resources:
+     requests:
+       storage: 1Gi
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: grafana
+  spec:
+    ports:
+    - name: 3000-tcp
+      port: 3000
+      protocol: TCP
+      targetPort: 3000
+    selector:
+      deploymentconfig: grafana
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: grafana
+  spec:
+    port:
+      targetPort: 3000-tcp
+    to:
+      kind: Service
+      name: grafana
+      weight: 100
+    wildcardPolicy: None
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: grafana-load-balancer
+  spec:
+    selector:
+      deploymentconfig: grafana
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 3000
+    type: LoadBalancer
+
+- kind: Secret
+  apiVersion: v1
+  metadata:
+    name: grafana-admin-user
+  stringData:
+    password: "${GRAFANA_PASSWORD}"
+    username: "${GRAFANA_USERNAME}"
+
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: grafana-config
+  data:
+    grafana.ini: |
+      [analytics]
+      check_for_updates = true
+      [grafana_net]
+      url = https://grafana.net
+      [log]
+      mode = console
+      [paths]
+      data = /var/lib/grafana/data
+      logs = /var/log/grafana
+      plugins = /var/lib/grafana/plugins
+      provisioning = /etc/grafana/provisioning
+
+parameters:
+- name: GRAFANA_USERNAME
+  required: true
+  value: admin
+- name: GRAFANA_PASSWORD
+  required: true
+  generate: expression
+  from: "[a-zA-Z0-9]{12}"
+- name: IMAGE_TAG
+  required: true
+  value: latest
+- name: PLUGINS
+message: "Grafana admin user: username=${GRAFANA_USERNAME}, password=${GRAFANA_PASSWORD}"

@@ -259,7 +259,7 @@ objects:
 - apiVersion: v1
   kind: Service
   metadata:
-    name: load-balancer
+    name: graphite-load-balancer
   spec:
     selector:
       deploymentconfig: graphite-statsd
