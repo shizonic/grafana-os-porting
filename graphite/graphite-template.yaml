@@ -48,19 +48,19 @@ objects:
         kind: ImageStreamTag
         name: grafana-rootless:latest
     source:
-      type: Git
+      contextDir: graphite
       git:
         ref: graphite_build
         uri: https://gitlab.puzzle.ch/cbalmer/grafana-os-porting.git
-      contextDir: graphite
       sourceSecret:
         name: gitlab-deploy-token
+      type: Git
     strategy:
-      type: Docker
       dockerStrategy:
       from:
         kind: ImageStreamTag
         name: graphite-statsd:latest
+      type: Docker
     triggers:
     - type: ConfigChange
 
@@ -73,14 +73,6 @@ objects:
       deploymentconfig: graphite-statsd
   spec:
     replicas: 1
-    triggers:
-    - type: ConfigChange
-    - type: imageChangeParams
-      imageChangeParams:
-        automatic: true
-        from:
-          kind: ImageStreamTag
-          name: grafana-rootless:latest
     template:
       metadata:
         labels:
@@ -139,6 +131,14 @@ objects:
             defaultMode: 420
             name: nginx-config
           name: config-volume
+    triggers:
+    - type: ConfigChange
+    - type: imageChangeParams
+      imageChangeParams:
+        automatic: true
+        from:
+          kind: ImageStreamTag
+          name: grafana-rootless:latest
 - kind: ConfigMap
   apiVersion: v1
   metadata:
