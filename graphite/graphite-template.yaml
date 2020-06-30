@@ -6,7 +6,7 @@ labels:
 metadata:
   name: graphite-statsd
 objects:
-
+# output image stream
 - kind: ImageStream
   apiVersion: v1
   metadata:
@@ -14,7 +14,7 @@ objects:
   spec:
     tags:
     - name: ${IMAGE_TAG}
-
+# input image stream (tracks docker.io)
 - kind: ImageStream
   apiVersion: v1
   metadata:
@@ -25,7 +25,7 @@ objects:
         kind: DockerImage
         name: graphiteapp/graphite-statsd:${IMAGE_TAG}
       name: ${IMAGE_TAG}
-
+# secret used by build to acces git
 - kind: Secret
   apiVersion: v1
   metadata:
@@ -33,7 +33,7 @@ objects:
   data:
     password: ${GIT_PASSWORD}
     username: ${GIT_USERNAME}
-
+# pull Dockerfile fom git and build image
 - kind: BuildConfig
   apiVersion: v1
   metadata:
@@ -45,6 +45,7 @@ objects:
         name: graphite-rootless:${IMAGE_TAG}
     runPolicy: Serial
     source:
+      # set subpath in repo as build context
       contextDir: graphite
       git:
         ref: ${GIT_BRANCH}
@@ -61,6 +62,7 @@ objects:
         buildArgs:
         - name: tag
           value: ${IMAGE_TAG}
+    # build new image if buildconfig changes or new image is released
     triggers:
     - type: ConfigChange
     - imageChange:
@@ -115,6 +117,7 @@ objects:
             protocol: TCP
           - containerPort: 2024
             protocol: TCP
+          # probe this path:port to check if container is started and ready
           readinessProbe:
             httpGet:
               path: /
@@ -124,6 +127,7 @@ objects:
             periodSeconds: 10
             successThreshold: 1
             failureThreshold: 3
+          # probe this path:port to check if container is stil alive
           livenessProbe:
             httpGet:
               path: /
@@ -135,9 +139,11 @@ objects:
             successThreshold: 1
             failureThreshold: 10
           resources:
+            # maximum allowed usage (hard cap)
             limits:
               cpu: 100m
               memory: 500Mi
+            # average usage used to decide on which node to place the container
             requests:
               cpu: 30m
               memory: 200Mi
@@ -165,6 +171,7 @@ objects:
         - persistentVolumeClaim:
             claimName: graphite-storage
           name: graphite-storage
+    # build new image if buildconfig changes or new image is released
     triggers:
     - type: ConfigChange
     - type: ImageChange
